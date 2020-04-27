@@ -21,10 +21,10 @@ module Ogle
       end
     end
 
+    ANTPLUS_PUBLIC_NETWORK = 0x1
     ANTPLUS_NETWORK_KEY = [
       0xb9, 0xa5, 0x21, 0xfb, 0xbd, 0x72, 0xc3, 0x45
     ].freeze
-    ANTPLUS_PUBLIC_NETWORK = 0
     ANTPLUS_HEARTRATE_NETWORK = 0x78
 
     CHANNEL_TYPES = {
@@ -66,7 +66,7 @@ module Ogle
       Ogle::Ant::Channel.new(self, number: number)
     end
 
-    # Sets channel 0 to scan mode and yields Ant::Message objects.
+    # Sets a channel to scan mode and yields Ant::Message objects.
     def scan(&block)
       channel(0).scan do |message|
         yield message
@@ -75,23 +75,37 @@ module Ogle
 
     def send_system_reset
       write(:system_reset_id, [0x00])
-      read
+      wait_until_reset
     end
 
-    def send_network_key(number)
-      write(:network_key_id, ANTPLUS_NETWORK_KEY + [number])
+    def wait_until_reset
+      loop do
+        message = read
+        return unless message
+
+        sleep 0.5
+      end
+    end
+
+    def send_network_key
+      write(:network_key_id, [ANTPLUS_PUBLIC_NETWORK] + ANTPLUS_NETWORK_KEY)
       read
     end
 
     def send_channel_type(number, type:)
       type_id = CHANNEL_TYPES[type]
       raise ArgumentError, "Unknown channel type `#{type}'" unless type_id
-      write(:assign_channel_id, [number, type_id, ANTPLUS_PUBLIC_NETWORK])
+      write(:assign_channel_id, [number, type_id, ANTPLUS_PUBLIC_NETWORK, 0x0])
       read
     end
 
     def send_channel_id(number)
-      write(:channel_id_id, [number, 0x00, 0x00, 0x00, 0x00])
+      write(:channel_id_id, [number, 0x0, 0x0, 0x0, 0x0])
+      read
+    end
+
+    def send_channel_period(number, period:)
+      write(:channel_mesg_period_id, [number, period])
       read
     end
 
@@ -100,23 +114,39 @@ module Ogle
       read
     end
 
+    #  Power is 0..4 where 3 = 0dBm.
+    def send_tx_power(power)
+      write(:radio_tx_power_id, [0x0, power])
+      read
+    end
+
     # Set timeout in ticks; a tick is 2.5 seconds
     def send_search_timeout(number, ticks:)
-      write(:set_lp_search_timeout_id, [ticks])
+      write(:set_lp_search_timeout_id, [number, ticks])
+    end
+
+    def send_antlib_config(number, how:)
+      write(:antlib_config_id, [number, Ogle::Ant::Message.id(how)])
     end
 
     def send_accept_extended_messages
-      write(:rx_ext_mesgs_enable_id, [0x01])
+      write(:rx_ext_mesgs_enable_id, [0x0, 0x1])
       read
     end
 
     def send_enable_scan_mode
-      write(:open_rx_scan_id, [0x00])
+      write(:open_rx_scan_id, [0x0, 0x0])
+      read
+    end
+
+    def send_open_channel(number)
+      write(:open_channel_id, [number])
       read
     end
 
     def send_close_channel(number)
       write(:close_channel_id, [number])
+      read
     end
 
     def message_id(name)
@@ -141,7 +171,7 @@ module Ogle
 
     def write(message, bytes)
       packet = packet(message, bytes)
-      logger.debug('<-- ' + Ogle::Ant::Message.format(packet))
+      logger.debug('<-- (' + message.to_s + ') ' + Ogle::Ant::Message.format(packet))
       transfer = LIBUSB::InterruptTransfer.new(
         allow_device_memory: true,
         dev_handle: handle,

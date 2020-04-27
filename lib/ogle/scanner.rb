@@ -2,6 +2,7 @@
 
 require 'logger'
 require 'ogle/ant'
+require 'ogle/ant/broadcast_data'
 require 'ogle/device'
 
 module Ogle
@@ -10,7 +11,7 @@ module Ogle
 
     def initialize
       @running = true
-      @logger = Logger.new(STDERR)
+      @logger = Logger.new('ant.log')
     end
 
     def running?
@@ -22,6 +23,7 @@ module Ogle
         ant = Ogle::Ant.new(
           logger: logger, device: device, handle: handle
         )
+        #ant.send_system_reset
         while(running?)
           ant.scan do |message|
             handle(message)
@@ -33,6 +35,11 @@ module Ogle
     private
 
     def handle(message)
+      case message.name
+      when 'broadcast_data_id'
+        m = Ogle::Ant::BroadcastData.new(message.data[3..-1])
+        puts [m.device_type, m.device_number]
+      end
     end
   end
 end

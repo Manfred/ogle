@@ -12,25 +12,29 @@ module Ogle
           @data = data
         end
 
-        def id
-          data[0]
+        def failed?
+          data[0] == 0x0
         end
 
-        def definition
-          Ogle::Ant::Event::CHANNEL_EVENTS[id]
+        def response_to
+          Ogle::Ant::Event.name(data[1])
+        end
+
+        def result
+          Ogle::Ant::Event::CHANNEL_EVENTS[data[2]]
         end
 
         def name
-          definition[0]
+          result[0]
         end
 
         def description
-          definition[1]
+          result[1]
         end
 
         def to_exception
           case name
-          when 'rx_search_timeout', 'close_all_channels'
+          when 'invalid_message'
             Ogle::Ant::InvalidOperation.new(self)
           end
         end

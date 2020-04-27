@@ -11,41 +11,32 @@ module Ogle
         @number = number
       end
 
-      def prepare_for_scan
-        ant.send_system_reset
-        ant.send_network_key(number)
-        ant.send_channel_type(number, type: :one_way_receive)
+      def enable_scan_mode
+        ant.send_network_key
+        ant.send_channel_type(number, type: :two_way_receive)
         ant.send_channel_id(number)
         ant.send_channel_frequency(number, frequency: 57)
-        ant.send_accept_extended_messages
-      rescue Ogle::Ant::InvalidOperation => error
-        if error.event.name == 'close_all_channels'
-          ant.send_close_channel(number)
-          retry
-        else
-          raise
-        end
-      end
-
-      def enable_scan_mode
+        # ant.send_channel_period(number, period: 32768)
+        # ant.send_tx_power(3)
+        # ant.send_search_timeout(0, ticks: 255)
+        # ant.send_antlib_config(number, how: :ext_id_0)
+        # ant.send_accept_extended_messages
         ant.send_enable_scan_mode
-      rescue Ogle::Ant::InvalidOperation => error
-        if error.event.name == 'rx_search_timeout'
-          sleep 5
-          retry
-        else
-          raise
-        end
       end
 
       def scan
-        prepare_for_scan
         enable_scan_mode
-        while(42)
+        loop do
           if message = ant.read
             yield message
           end
         end
+      ensure
+        close
+      end
+
+      def close
+        ant.send_close_channel(number)
       end
     end
   end

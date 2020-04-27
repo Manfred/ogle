@@ -1,0 +1,30 @@
+PATH
+  remote: .
+  specs:
+    ogle (0.1.0)
+      libusb
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    ffi (1.12.2)
+    libusb (0.6.4)
+      ffi (~> 1.0)
+      mini_portile2 (~> 2.1)
+    mini_portile2 (2.5.0)
+    minitest (5.14.0)
+    minitest-assert_errors (0.1.0)
+      minitest
+    rake (12.3.3)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bundler (~> 2)
+  minitest-assert_errors
+  ogle!
+  rake (~> 12)
+
+BUNDLED WITH
+   2.1.2
